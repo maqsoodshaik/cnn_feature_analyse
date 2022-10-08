@@ -71,7 +71,6 @@ list_datasets_train = []
 list_datasets_validation = []
 for val,i in enumerate(languages):   
     dataset_train = load_dataset(config_args['source_language_set']['dataset'],i,split =config_args['source_language_set']['train_split'],streaming=True )
-    dataset_train = .from_dict
     dataset_train = dataset_train.add_column("labels",[val]*len(dataset_train))
     dataset_validation = load_dataset(config_args['source_language_set']['dataset'],i,split = config_args['source_language_set']['validation_split'],streaming=True)
     dataset_validation = dataset_validation.add_column("labels",[val]*len(dataset_validation))
@@ -106,8 +105,8 @@ def preprocess_function(examples):
     return inputs
 encoded_dataset_train = dataset_train.map(preprocess_function, remove_columns=['file','audio','text','speaker_id','chapter_id','id'], batched=True)
 encoded_dataset_validation = dataset_validation.map(preprocess_function, remove_columns=['file','audio','text','speaker_id','chapter_id','id'], batched=True)
-encoded_dataloader_train = DataLoader(encoded_dataset_train, batch_size=32)
-encoded_dataloader_validation = DataLoader(encoded_dataset_validation, batch_size=32)
+encoded_dataloader_train = DataLoader(encoded_dataset_train.with_format("torch"), batch_size=32)
+encoded_dataloader_validation = DataLoader(encoded_dataset_validation.with_format("torch"), batch_size=32)
 # initialize speech encoder
 
 num_labels = len(id2label)
