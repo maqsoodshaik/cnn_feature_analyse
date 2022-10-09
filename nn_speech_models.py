@@ -357,7 +357,7 @@ class ConvSpeechEncoder(nn.Module):
     """A 1D 3-layer convolutional encoder for speech data."""
     def __init__(self,
         spectral_dim=13,
-        max_num_frames= 384,
+        max_num_frames= 454,
         num_channels=[128, 256, 512],
         filter_sizes=[5, 10, 10],
         stride_steps=[1, 1, 1],
@@ -449,11 +449,10 @@ class ConvSpeechEncoder(nn.Module):
         )
 
         if self.pooling_type == 'max':
-            # determine the output dimensionality of the resulting tensor
-            shrinking_dims = sum([(i - 1) for i in filter_sizes])
-            out_dim = self.max_num_frames - shrinking_dims
-
-            self.PoolLayer = nn.MaxPool1d(kernel_size=out_dim, stride=1) # 362
+            # # determine the output dimensionality of the resulting tensor
+            # shrinking_dims = sum([(i - 1) for i in filter_sizes])
+            # out_dim = self.max_num_frames - shrinking_dims
+            self.PoolLayer = nn.MaxPool1d(kernel_size=self.max_num_frames, stride=1) # 362
         else:
             #TODO: implement other statistical pooling approaches
             raise NotImplementedError
@@ -616,7 +615,8 @@ class GradientReversal(Function):
 class SpeechClassifier(nn.Module):
     """A classifier on top of speech encoder. """
     def __init__(self,
-        featurizer,
+        extractor,
+        projector,
         speech_segment_encoder,
         task_classifier
     ):
@@ -626,7 +626,8 @@ class SpeechClassifier(nn.Module):
             task_classifier (FeedforwardClassifier): n-way classifier
         """
         super(SpeechClassifier, self).__init__()
-        self.featurizer = featurizer
+        self.extractor = extractor
+        self.projector = projector
         self.speech_encoder = speech_segment_encoder
         self.task_classifier = task_classifier
 
@@ -636,8 +637,10 @@ class SpeechClassifier(nn.Module):
         The forward pass of the end-to-end classifier. Given x_in (torch.Tensor),
             return output tensor y_hat or out_vec (torch.Tensor)
         """
-        features = self.featurizer(x_in)
-        conv_features = self.speech_encoder(features,
+        extract_features = self.extractor(x_in)
+        # extract_features = extract_features.transpose(1, 2)
+        # _,extract_features = self.projector(extract_features)
+        conv_features = self.speech_encoder(extract_features,
             shuffle_frames=shuffle_frames,
             shuffle_bag_size=shuffle_bag_size)
 

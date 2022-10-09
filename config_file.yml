@@ -1,5 +1,5 @@
 # CONFIG FILE FOR AN LID EXPERIMENT
-model_save_dir: 'saved_model'
+model_save_dir: '/saved_model'
 seed: 1337
 source_language_set: 
     languages : 'french german dutch'
@@ -10,7 +10,7 @@ experiment_name: 'cnn_as_encoder'
 #
 input_signal_params:
     max_duration : 10.0 #seconds
-    max_num_frames: 384
+    max_num_frames: 454
     num_frames: 300
     sampling_rate: 16000
     sample_segment: True
@@ -19,7 +19,7 @@ input_signal_params:
 #
 encoder_arch:
     encoder_model: ConvEncoder
-    spectral_dim: 13
+    spectral_dim: 512
     frame_dropout: True # either frame_dropout or feature_dropout can be True
     feature_dropout: False
     signal_dropout_prob: 0.0
@@ -48,7 +48,7 @@ classifier_arch:
 training_hyperparams:
     learning_rate: 0.001
     batch_size: 256
-    num_epochs: 50
+    num_epochs: 100
     early_stopping_criteria: 50
 cuda: True
 catch_keyboard_interrupt: True

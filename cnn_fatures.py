@@ -70,9 +70,9 @@ languages=config_args['source_language_set']['languages'].split()
 list_datasets_train = []
 list_datasets_validation = []
 for val,i in enumerate(languages):   
-    dataset_train = load_dataset(config_args['source_language_set']['dataset'],i,split =config_args['source_language_set']['train_split'],streaming=True )
+    dataset_train = load_dataset(config_args['source_language_set']['dataset'],i,split =config_args['source_language_set']['train_split'] )
     dataset_train = dataset_train.add_column("labels",[val]*len(dataset_train))
-    dataset_validation = load_dataset(config_args['source_language_set']['dataset'],i,split = config_args['source_language_set']['validation_split'],streaming=True)
+    dataset_validation = load_dataset(config_args['source_language_set']['dataset'],i,split = config_args['source_language_set']['validation_split'])
     dataset_validation = dataset_validation.add_column("labels",[val]*len(dataset_validation))
     list_datasets_train.append(dataset_train)
     list_datasets_validation.append(dataset_validation)
@@ -105,8 +105,8 @@ def preprocess_function(examples):
     return inputs
 encoded_dataset_train = dataset_train.map(preprocess_function, remove_columns=['file','audio','text','speaker_id','chapter_id','id'], batched=True)
 encoded_dataset_validation = dataset_validation.map(preprocess_function, remove_columns=['file','audio','text','speaker_id','chapter_id','id'], batched=True)
-encoded_dataloader_train = DataLoader(encoded_dataset_train.with_format("torch"), batch_size=32)
-encoded_dataloader_validation = DataLoader(encoded_dataset_validation.with_format("torch"), batch_size=32)
+encoded_dataloader_train = DataLoader(encoded_dataset_train.with_format("torch"), batch_size=8,shuffle=True)
+encoded_dataloader_validation = DataLoader(encoded_dataset_validation.with_format("torch"), batch_size=8)
 # initialize speech encoder
 
 num_labels = len(id2label)
@@ -120,7 +120,10 @@ nn_speech_encoder_source = AutoModel.from_pretrained(
 # def print_param(model):
 #     for par in model.parameters():
 #         print(par)
-src_speech_featurizer = nn_speech_encoder_source.feature_extractor
+nn_speech_encoder_source.feature_projection.projection.out_features=13
+# nn_speech_encoder_source.feature_extractor.conv_layers[6].conv.out_channels=13
+extractor = nn_speech_encoder_source.feature_extractor
+prj = nn_speech_encoder_source.feature_projection 
 # initialize speech encoder
 if config_args['encoder_arch']['encoder_model'] == 'ConvEncoder':
     nn_speech_encoder = ConvSpeechEncoder(
@@ -149,10 +152,11 @@ nn_task_classifier = FeedforwardClassifier(
 
 # initialize end-2-end LID classifier ...
 baseline_LID_classifier = SpeechClassifier(
-    featurizer = src_speech_featurizer,
+    extractor = extractor,
+    projector=prj,
     speech_segment_encoder=nn_speech_encoder,
     task_classifier=nn_task_classifier
-)
+).to(config_args['device'])
 
 print('\nEnd-to-end LID classifier was initialized ...\n',
     baseline_LID_classifier)
@@ -191,6 +195,7 @@ try:
         # Iterate over training dataset, set loss and acc to 0
         # set train mode on, generate batch
         run_cls_loss, run_cls_acc = 0.0, 0.0
+        best_accuracy = 0
 
         baseline_LID_classifier.train()
 
@@ -201,10 +206,10 @@ try:
 
             # forward pass and compute loss on source domain
 
-            src_cls_tar = src_batch_dict['labels']
+            src_cls_tar = src_batch_dict['labels'].to(config_args['device'])
 
             # forward pass
-            src_cls_hat = baseline_LID_classifier(x_in=src_batch_dict['input_values'])
+            src_cls_hat = baseline_LID_classifier(x_in=src_batch_dict['input_values'].to(config_args['device']))
 
             loss = cls_loss(src_cls_hat, src_cls_tar)
 
@@ -246,10 +251,10 @@ try:
         for batch_index, src_batch_dict in enumerate(encoded_dataloader_validation):
             # forward pass and compute loss on source domain
 
-            src_cls_tar = src_batch_dict['labels']
+            src_cls_tar = src_batch_dict['labels'].to(config_args['device'])
 
             # forward pass
-            src_cls_hat = baseline_LID_classifier(x_in=src_batch_dict['input_values'])
+            src_cls_hat = baseline_LID_classifier(x_in=src_batch_dict['input_values'].to(config_args['device']))
 
             src_cls_loss = cls_loss(src_cls_hat, src_cls_tar)
 
@@ -273,7 +278,12 @@ try:
 				src_cls_hat, src_cls_tar
 			)
             y_src_tar.extend(batch_y_src_tar); y_src_hat.extend(batch_y_src_hat)
-
+        cur_accuracy=run_cls_acc
+        if cur_accuracy > best_accuracy:
+            best_accuracy = cur_accuracy
+            best_model = baseline_LID_classifier
+            print("best")
+            torch.save(best_model.state_dict(),'/saved_model/best_model.ckpt')
         # TRAIN & VAL iterations for one epoch is over ...
         train_state['val_loss'].append(run_cls_loss)
         train_state['val_acc'].append(run_cls_acc)
