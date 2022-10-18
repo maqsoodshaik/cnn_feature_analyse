@@ -283,7 +283,7 @@ try:
             best_accuracy = cur_accuracy
             best_model = baseline_LID_classifier
             print("best")
-            torch.save(best_model.state_dict(),'/saved_model/best_model.ckpt')
+            torch.save(best_model.state_dict(),f'/saved_model/{config_args['source_language_set']['dataset'].split('/')[1]}_best_model.ckpt.ckpt')
         # TRAIN & VAL iterations for one epoch is over ...
         train_state['val_loss'].append(run_cls_loss)
         train_state['val_acc'].append(run_cls_acc)
