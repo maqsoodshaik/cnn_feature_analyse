@@ -2,10 +2,10 @@
 model_save_dir: '/saved_model'
 seed: 1337
 source_language_set: 
-    languages : 'french german dutch'
-    dataset : "facebook/multilingual_librispeech"
-    train_split : "train.9h"
-    validation_split : "train.1h"
+    languages : 'fr de nl'
+    dataset : "/corpora/voxlingua"
+    train_split : "train"
+    validation_split : "validation"
 experiment_name: 'cnn_as_encoder'
 #
 input_signal_params:

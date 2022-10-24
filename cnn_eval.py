@@ -136,7 +136,7 @@ print('\nEnd-to-end LID classifier was initialized ...\n',
     baseline_LID_classifier)
 
 best_model = baseline_LID_classifier
-best_model.load_state_dict(torch.load('/saved_model/best_model.ckpt'))
+best_model.load_state_dict(torch.load('/saved_model/corpora_best_model.ckpt'))
 
 
 

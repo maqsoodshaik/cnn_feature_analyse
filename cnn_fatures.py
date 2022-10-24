@@ -70,9 +70,9 @@ languages=config_args['source_language_set']['languages'].split()
 list_datasets_train = []
 list_datasets_validation = []
 for val,i in enumerate(languages):   
-    dataset_train = load_dataset(config_args['source_language_set']['dataset'],i,split =config_args['source_language_set']['train_split'] )
+    dataset_train = load_dataset(config_args['source_language_set']['dataset'],data_dir = i,split =config_args['source_language_set']['train_split'] )
     dataset_train = dataset_train.add_column("labels",[val]*len(dataset_train))
-    dataset_validation = load_dataset(config_args['source_language_set']['dataset'],i,split = config_args['source_language_set']['validation_split'])
+    dataset_validation = load_dataset(config_args['source_language_set']['dataset'],data_dir = i,split = config_args['source_language_set']['validation_split'])
     dataset_validation = dataset_validation.add_column("labels",[val]*len(dataset_validation))
     list_datasets_train.append(dataset_train)
     list_datasets_validation.append(dataset_validation)
@@ -103,8 +103,8 @@ def preprocess_function(examples):
         padding=True
     )
     return inputs
-encoded_dataset_train = dataset_train.map(preprocess_function, remove_columns=['file','audio','text','speaker_id','chapter_id','id'], batched=True)
-encoded_dataset_validation = dataset_validation.map(preprocess_function, remove_columns=['file','audio','text','speaker_id','chapter_id','id'], batched=True)
+encoded_dataset_train = dataset_train.map(preprocess_function, remove_columns=["audio","label"], batched=True)
+encoded_dataset_validation = dataset_validation.map(preprocess_function, remove_columns=["audio","label"], batched=True)
 encoded_dataloader_train = DataLoader(encoded_dataset_train.with_format("torch"), batch_size=8,shuffle=True)
 encoded_dataloader_validation = DataLoader(encoded_dataset_validation.with_format("torch"), batch_size=8)
 # initialize speech encoder
@@ -283,7 +283,7 @@ try:
             best_accuracy = cur_accuracy
             best_model = baseline_LID_classifier
             print("best")
-            torch.save(best_model.state_dict(),f'/saved_model/{config_args['source_language_set']['dataset'].split('/')[1]}_best_model.ckpt.ckpt')
+            torch.save(best_model.state_dict(),f"/saved_model/{config_args['source_language_set']['dataset'].split('/')[1]}_best_model.ckpt")
         # TRAIN & VAL iterations for one epoch is over ...
         train_state['val_loss'].append(run_cls_loss)
         train_state['val_acc'].append(run_cls_acc)
