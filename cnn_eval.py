@@ -143,18 +143,20 @@ best_model.load_state_dict(torch.load('/saved_model/corpora_best_model.ckpt'))
 import datasets
 
 from pathlib import Path
-datasets.config.DOWNLOADED_DATASETS_PATH = Path('/corpora/fleurs/')
+datasets.config.DOWNLOADED_DATASETS_PATH = Path('/corpora/voxlingua/')
 
 
 ###fleaurs
 
-
-dataset_name = "fleurs"
-configs = ['fr_fr','de_de','nl_nl']
+dataset_name = "voxlingua"
+# dataset_name = "fleurs"
+# configs = ['fr_fr','de_de','nl_nl']
+configs = ['fr','de','nl']
 list_datasets_validation = []
-for i in configs:   
-    dataset_validation = load_dataset("google/fleurs",i,split = "train")
-    # dataset_validation = Dataset.from_dict(dataset_validation[:100])
+for index,i in enumerate(configs):   
+    dataset_validation = load_dataset("/corpora/voxlingua/",data_dir=i,split = "train")
+    dataset_validation = Dataset.from_dict(dataset_validation[:20])
+    dataset_validation = dataset_validation.add_column("labels",[index]*len(dataset_validation))
     list_datasets_validation.append(dataset_validation)
 dataset_validation = concatenate_datasets(
         list_datasets_validation
@@ -169,9 +171,10 @@ def preprocess_function_f(examples):
         truncation=True,
         padding=True 
     )
-    inputs["labels"] = [label2id_int[image] for image in examples["language"]]
+    # inputs["labels"] = [label2id_int_f[image] for image in examples["label"]]
+    # inputs["labels"] = examples["label"]
     return inputs
-encoded_dataset_validation = dataset_validation.map(preprocess_function_f, remove_columns=["id","num_samples", "path", "audio", "transcription", "raw_transcription", "gender", "lang_id", "language", "lang_group_id"], batched=True)
+encoded_dataset_validation = dataset_validation.map(preprocess_function_f, remove_columns=["audio","label"], batched=True)
 
 encoded_dataset_validation_o=encoded_dataset_validation_o.add_column("domain",[0]*len(encoded_dataset_validation_o))
 encoded_dataset_validation = encoded_dataset_validation.add_column("domain",[1]*len(encoded_dataset_validation))
@@ -210,6 +213,28 @@ for batch_index,batch in enumerate(eval_dataloader):
         labels_p = torch.cat((labels_p,labels_s.to("cpu")),0)
         domain_s =  batch["domain"]
         domain = torch.cat((domain,domain_s.to("cpu")),0)
+#calculating the accuracy of outof domain
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+import random
+def train_clf(x_train, x_test,y_train, y_test):
+    random.seed(0)
+    np.random.seed(0)
+
+    clf = LogisticRegression()
+    #clf = LogisticRegression(warm_start = True, penalty = 'l2',
+    #                         solver = "saga", multi_class = 'multinomial', fit_intercept = False,
+    #                         verbose = 5, n_jobs = 90, random_state = 1, max_iter = 15)
+    #clf = SGDClassifier(max_iter=3000, n_iter_no_change=10)x
+    #clf = LinearSVC(max_iter=3000)
+
+    clf.fit(x_train.reshape(x_train.shape[0],-1), y_train)
+    score_test = clf.score(x_test.reshape(x_test.shape[0],-1), y_test)
+    score_train = clf.score(x_train.reshape(x_train.shape[0],-1), y_train)
+    print(f"test_score{score_test}")
+    print(f"train{score_train}")
+X_train, X_test, y_train, y_test = train_test_split( pred, domain, test_size=0.33, random_state=42)
+train_clf( X_train, X_test, y_train, y_test)
 pred = pred.detach().numpy()
 from sklearn.manifold import TSNE
 from sklearn.decomposition import PCA
@@ -243,7 +268,7 @@ sns.scatterplot(x ="TSNE1" ,y="TSNE2",hue="Labels",style="Domain",data=plot_fram
 plt.title(f'TSNE of original')
 # ax.legend(handles=scatter.legend_elements()[0],labels=labels)
 # ax.legend(handles=scatter.legend_elements()[1],labels=["indomain","outof_domain"])
-plt.savefig(f"/plots/cnn_{dataset_name_o}.pdf", bbox_inches="tight")
+plt.savefig(f"/plots/cnn_{dataset_name_o}_{dataset_name}.pdf", bbox_inches="tight")
 plt.show()
 
 print("end")
